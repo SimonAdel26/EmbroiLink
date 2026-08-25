@@ -1,0 +1,16 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/python
+{
+	"name": "EmbroiLink - Dev",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"postCreateCommand": "python3 -m pip install -r requirements.txt --break-system-packages",
+	"containerEnv": {
+		"DISPLAY": ":0",
+		"WAYLAND_DISPLAY": "wayland-0",
+		"XDG_RUNTIME_DIR": "/mnt/wslg/runtime-dir",
+		"PULSE_SERVER": "/mnt/wslg/PulseServer",
+		"QT_QPA_PLATFORM": "xcb"
+	}
+}
