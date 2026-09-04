@@ -6,11 +6,12 @@
 		"dockerfile": "Dockerfile"
 	},
 	"postCreateCommand": "python3 -m pip install -r requirements.txt --break-system-packages",
-	"containerEnv": {
-		"DISPLAY": ":0",
-		"WAYLAND_DISPLAY": "wayland-0",
-		"XDG_RUNTIME_DIR": "/mnt/wslg/runtime-dir",
-		"PULSE_SERVER": "/mnt/wslg/PulseServer",
-		"QT_QPA_PLATFORM": "xcb"
-	}
+	"customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+				"ms-python.black-formatter"
+            ]
+        }
+    }
 }

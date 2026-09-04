@@ -1,6 +1,12 @@
-""" Entry point for embroi_link"""
+import sys
+from PyQt6.QtWidgets import QApplication
 
-from embroi_link.cli import main
+from embroi_link.interface.interface import MainWindow
 
 if __name__ == "__main__":
-    main()
+    app = QApplication(sys.argv)
+
+    window = MainWindow()
+    window.showMaximized()
+
+    app.exec()
