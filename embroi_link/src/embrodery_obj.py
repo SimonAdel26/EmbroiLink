@@ -1,6 +1,10 @@
+from pathlib import Path
+
+import numpy as np
+
 import cv2
 import json
-from pathlib import Path
+import os
 
 PROJECT_DIR = Path.cwd() / "embroi_link"
 IMAGES_DIR_PATH = PROJECT_DIR / "backup/images"
@@ -16,6 +20,8 @@ class EmbroderyObj:
         self.list_colors = []
 
         self._init_projects_backup()
+
+    # Private methods
 
     def _init_projects_backup(self):
         if not IMAGES_RESULTS_DIR_PATH.exists():
@@ -35,47 +41,7 @@ class EmbroderyObj:
         except Exception as ex:
             print(f"Save failed! {ex}")
 
-    def load_image(self, image_path, uploaded=False):
-        if uploaded:
-            with open(HISTORY_FILE_PATH, "r") as f:
-                data = json.load(f)
-
-            self.cv_image = cv2.imread(image_path)
-            self.image_path = IMAGES_DIR_PATH / Path(image_path).name
-            if not self.image_path in data.keys():
-                data[str(self.image_path)] = {}
-
-                if cv2.imwrite(self.image_path, self.cv_image):
-                    self._save_to_file(data)
-                else:
-                    print(f"Image {self.image_path} NOT saved ")
-
-            self._save_to_file(data)
-            return
-
-        self.image_path = Path(image_path)
-        self.cv_image = cv2.imread(self.image_path)
-        self.cv_image_result = self.get_generated_file()
-
-    def save_image(self):
-        if self.cv_image_result is None:
-            print("No image to save")
-            return
-
-        image_name_base = self.image_path.stem
-        extension = self.image_path.suffix
-        last_saved_path = self.get_last_saved_path()
-        contor = 0
-        if last_saved_path:
-            contor = int(last_saved_path.split("-")[1].split(".")[0]) + 1
-
-        current_image_name = f"{image_name_base}-{contor}{extension}"
-        image_path = IMAGES_RESULTS_DIR_PATH / Path(current_image_name)
-
-        if not cv2.imwrite(image_path, self.cv_image_result):
-            print(f"Image {image_path} NOT saved ")
-
-    def get_last_saved_path(self):
+    def _get_last_saved_path(self):
         image_name_base = self.image_path.stem
         extension = self.image_path.suffix
 
@@ -91,11 +57,98 @@ class EmbroderyObj:
 
         return None
 
-    def get_generated_file(self):
-        last_saved_path = self.get_last_saved_path()
+    def _get_generated_file(self):
+        last_saved_path = self._get_last_saved_path()
         if last_saved_path:
             return cv2.imread(IMAGES_RESULTS_DIR_PATH / Path(last_saved_path))
         return last_saved_path
+
+    def _select_zone_color(self, x, y, color):
+        h, w = self.cv_image_result.shape[:2]
+
+        mask = np.zeros((h + 2, w + 2), np.uint8)
+        filled = self.cv_image_result.copy()
+
+        if color is None:
+            fill_color = (0, 255, 0)
+        else:
+            fill_color = (color.blue(), color.green(), color.red())
+
+        lo_diff = up_diff = (20, 20, 20)
+        cv2.floodFill(
+            filled,
+            mask,
+            (x, y),
+            fill_color,
+            lo_diff,
+            up_diff,
+            flags=cv2.FLOODFILL_FIXED_RANGE,
+        )
+
+        return filled
+
+    # Public methods
+
+    def load_image(self, image_path, uploaded=False):
+        with open(HISTORY_FILE_PATH, "r") as f:
+            data = json.load(f)
+        self.cv_image = cv2.imread(image_path)
+
+        if uploaded:
+            self.image_path = IMAGES_DIR_PATH / Path(image_path).name
+            if not self.image_path in data.keys():
+                data[str(self.image_path)] = {}
+
+                if cv2.imwrite(self.image_path, self.cv_image):
+                    self._save_to_file(data)
+                else:
+                    print(f"Image {self.image_path} NOT saved ")
+            return
+
+        self.image_path = Path(image_path)
+        self.cv_image_result = self._get_generated_file()
+
+        if "colors" in data[str(self.image_path)].keys():
+            self.list_colors = data[str(self.image_path)]["colors"]
+            print(self.list_colors)
+        else:
+            self.list_colors = []
+
+    def save_image(self):
+        if self.cv_image_result is None:
+            print("No image to save")
+            return
+
+        image_name_base = self.image_path.stem
+        extension = self.image_path.suffix
+        last_saved_path = self._get_last_saved_path()
+        contor = 0
+        if last_saved_path:
+            contor = int(last_saved_path.split("-")[1].split(".")[0]) + 1
+
+        current_image_name = f"{image_name_base}-{contor}{extension}"
+        image_path = IMAGES_RESULTS_DIR_PATH / Path(current_image_name)
+
+        if not cv2.imwrite(image_path, self.cv_image_result):
+            print(f"Image {image_path} NOT saved ")
+
+    def click_zone(self, x, y, color):
+        if (
+            0 <= x < self.cv_image_result.shape[1]
+            and 0 <= y < self.cv_image_result.shape[0]
+        ):
+            # print(self.cv_image_result[y, x])
+            # self.cv_image_result[y, x] = [255, 255, 255]
+            # return self.cv_image_result
+            # if (self.cv_image_result[y, x] == [0, 0, 0]).all():
+            #     return None
+
+            image_selected_zone = self._select_zone_color(x, y, color)
+            if color:
+                self.cv_image_result = image_selected_zone.copy()
+                self.list_colors.append([color.blue(), color.green(), color.red()])
+
+            return image_selected_zone
 
     def colors(self, list_colors, added=False):
         with open(HISTORY_FILE_PATH, "r") as f:
@@ -109,5 +162,6 @@ class EmbroderyObj:
 
         if "colors" in data[str(self.image_path)].keys():
             self.list_colors = data[str(self.image_path)]["colors"]
+            print(self.list_colors)
         else:
             self.list_colors = []

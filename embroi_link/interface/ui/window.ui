@@ -18,7 +18,7 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_4">
-    <item row="0" column="0">
+    <item row="1" column="0">
      <widget class="QSplitter" name="splitter">
       <property name="lineWidth">
        <number>1</number>
@@ -254,7 +254,7 @@
              <number>0</number>
             </property>
             <property name="columnCount">
-             <number>5</number>
+             <number>9</number>
             </property>
             <attribute name="horizontalHeaderVisible">
              <bool>false</bool>
@@ -276,6 +276,10 @@
             <column/>
             <column/>
             <column/>
+            <column/>
+            <column/>
+            <column/>
+            <column/>
            </widget>
           </item>
          </layout>
@@ -284,6 +288,19 @@
          <widget class="Line" name="line_2">
           <property name="orientation">
            <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="labelListOfEmbroideryStitches">
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="text">
+           <string/>
           </property>
          </widget>
         </item>
@@ -332,7 +349,7 @@
      <x>0</x>
      <y>0</y>
      <width>1280</width>
-     <height>22</height>
+     <height>26</height>
     </rect>
    </property>
   </widget>
