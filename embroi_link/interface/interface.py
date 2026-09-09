@@ -1,3 +1,7 @@
+from time import sleep
+from typing import Any
+
+from PyQt6 import QtCore
 from PyQt6.QtWidgets import (
     QPushButton,
     QMainWindow,
@@ -13,7 +17,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPixmap, QImage, QColor, QMovie
 from PyQt6 import uic
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QObject, Qt, pyqtSignal, QThread
 
 from embroi_link.src.image_processing import ImageProcessing
 from embroi_link.src.gif_generator import GifGenerator
@@ -27,7 +31,29 @@ import numpy as np
 import json
 
 
+class KMeansWorker(QObject):
+    finished = pyqtSignal()
+
+    def __init__(self, embrodery_obj, K):
+        super().__init__()
+        self.embrodery_obj = embrodery_obj
+        self.k = K
+
+    def run(self):
+        """Long-running task."""
+        sleep(2)
+        cv_image, colors = ImageProcessing.image_Kmeans(
+            self.embrodery_obj.cv_image, self.k
+        )
+        self.embrodery_obj.colors(colors, True)
+        self.embrodery_obj.cv_image_result = cv_image
+        sleep(2)
+        self.finished.emit()
+
+
 class MainWindow(QMainWindow):
+    signal_generate_image = pyqtSignal()
+
     def __init__(self):
         super().__init__()
         uic.loadUi(Path.cwd() / "embroi_link/interface/ui/window.ui", self)
@@ -50,20 +76,36 @@ class MainWindow(QMainWindow):
             self.on_click_right_on_cell
         )
 
+        self.viewOriginalImage.keyPressEvent = self.keyPressEvent
+        self.viewNewImage.keyPressEvent = self.keyPressEvent
+        self.tableWidgetThreadColor.keyPressEvent = self.keyPressEvent
+        self.listWidgetHistory.keyPressEvent = self.keyPressEvent
+
+        self.viewOriginalImage.resizeEvent = self.on_image_resize
+        self.viewNewImage.resizeEvent = self.on_image_resize
         self.viewNewImage.mousePressEvent = self.on_image_click
         self.viewNewImage.mouseDoubleClickEvent = self.on_image_double_click
+
+        self.signal_generate_image.connect(self.generate_image)
 
         self.list_embroidery_stiches = QMenu()
         self.embrodery_obj = EmbroderyObj()
         self.gif = GifGenerator()
-        self.base = ImageProcessing()
 
         self.splitter.setStretchFactor(0, 3)
-        self.splitter.setStretchFactor(1, 1)
 
         self.init_window()
 
     # Public methods
+
+    def enable_all_elements(self, enabled=True):
+        self.pushButtonUpload.setEnabled(enabled)
+        self.pushButtonCreate.setEnabled(enabled)
+        self.pushButtonSave.setEnabled(enabled)
+
+        self.horizontalSliderK.setEnabled(enabled)
+        self.tableWidgetThreadColor.setEnabled(enabled)
+        self.listWidgetHistory.setEnabled(enabled)
 
     def init_window(self):
         with open(HISTORY_FILE_PATH, "r") as f:
@@ -79,10 +121,9 @@ class MainWindow(QMainWindow):
             item = self.listWidgetHistory.item(0)
             self.listWidgetHistory.itemDoubleClicked.emit(item)
 
+            self.stackedWidget.setCurrentIndex(1)
             if self.embrodery_obj.cv_image_result is None:
                 self.pushButtonCreate.clicked.emit()
-
-            self.stackedWidget.setCurrentIndex(1)
 
         self.refresh_color_table()
         self._init_embroidery_stiches()
@@ -116,14 +157,10 @@ class MainWindow(QMainWindow):
     # Events
 
     def keyPressEvent(self, event):
-        # TODO: nu merge mereu
         if event.key() == Qt.Key.Key_A:
             self.stackedWidget.setCurrentIndex(0)
         elif event.key() == Qt.Key.Key_D:
             self.stackedWidget.setCurrentIndex(1)
-        elif event.key() == Qt.Key.Key_X:
-            self.stackedWidget.setCurrentIndex(2)
-            self.show_loading()
         else:
             super().keyPressEvent(event)
 
@@ -148,6 +185,15 @@ class MainWindow(QMainWindow):
         _ = self.embrodery_obj.click_zone(x, y, color)
         self.show_image(self.viewNewImage, self.embrodery_obj.cv_image_result)
         self.refresh_color_table()
+
+    def on_image_resize(self, event):
+        for qt_graphics_view in [self.viewNewImage, self.viewOriginalImage]:
+            if qt_graphics_view.scene():
+                qt_graphics_view.fitInView(
+                    qt_graphics_view.scene().sceneRect(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                )
+        super().resizeEvent(event)
 
     def on_click_right_on_cell(self, pos):
         item = self.tableWidgetThreadColor.itemAt(pos)
@@ -196,7 +242,6 @@ class MainWindow(QMainWindow):
 
     def on_double_click_on_cell(self, row, col):
         """function to add color to the thread colors palette"""
-        print(self.embrodery_obj.image_path)
         # Open a color dialog to select a color
         item = self.tableWidgetThreadColor.item(row, col)
 
@@ -250,19 +295,31 @@ class MainWindow(QMainWindow):
             print("No image loaded.")
             return
 
-        cv_image, colors = self.base.image_Kmeans(
-            self.embrodery_obj.cv_image, self.horizontalSliderK.value()
-        )
-        # cv_image = self.base.image_contour(cv_image)
+        self.signal_generate_image.emit()
+        self.show_loading()
 
-        self.embrodery_obj.colors(colors, True)
-        self.embrodery_obj.cv_image_result = cv_image
+    def run_KMeans_task(self):
+        self.thread = QThread()
+        self.worker = KMeansWorker(self.embrodery_obj, self.horizontalSliderK.value())
+        self.worker.moveToThread(self.thread)
 
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.show_generated_image)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        self.thread.start()
+
+    def generate_image(self):
+        self.enable_all_elements(False)
+        self.run_KMeans_task()
+
+    def show_generated_image(self):
         self.show_image(self.viewNewImage, self.embrodery_obj.cv_image_result)
-
-        self.stackedWidget.setCurrentIndex(1)
-
         self.refresh_color_table()
+        self.enable_all_elements()
+        self.stackedWidget.setCurrentIndex(1)
 
     def on_save_image(self):
         """slot for save the result image"""
@@ -287,7 +344,7 @@ class MainWindow(QMainWindow):
             "/workspaces/EmbroiLink/embroi_link/res/EmbroideryStitches.png"
         )
 
-        self.labelListOfEmbroideryStitches.resize(1000, 300)
+        self.labelListOfEmbroideryStitches.setMinimumSize(500, 300)
         self.labelListOfEmbroideryStitches.setPixmap(
             pixmap.scaled(
                 self.labelListOfEmbroideryStitches.width(),
@@ -297,6 +354,7 @@ class MainWindow(QMainWindow):
             )
         )
         self.labelListOfEmbroideryStitches.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.labelListOfEmbroideryStitches.setScaledContents(True)
 
         for i in range(1, 43):
             action = self.list_embroidery_stiches.addAction(str(i))
@@ -351,14 +409,18 @@ class MainWindow(QMainWindow):
 
         scene.addPixmap(pixmap)
         qt_graphics_view.setScene(scene)
+        qt_graphics_view.fitInView(
+            scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio
+        )
 
     def show_loading(self):
         self.stackedWidget.setCurrentIndex(2)
         self.labelGif.clear()
-        movie = QMovie(self.gif.get_random())
-        movie.setScaledSize(self.labelGif.size())
-        self.labelGif.setMovie(movie)
-        movie.start()
+        self.labelGif.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        movie_gif = QMovie(self.gif.get_random())
+        movie_gif.setScaledSize(self.labelGif.size())
+        self.labelGif.setMovie(movie_gif)
+        movie_gif.start()
 
     def show_color(self, color):
         rows = self.tableWidgetThreadColor.rowCount()

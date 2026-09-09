@@ -110,7 +110,6 @@ class EmbroderyObj:
 
         if "colors" in data[str(self.image_path)].keys():
             self.list_colors = data[str(self.image_path)]["colors"]
-            print(self.list_colors)
         else:
             self.list_colors = []
 
@@ -137,12 +136,6 @@ class EmbroderyObj:
             0 <= x < self.cv_image_result.shape[1]
             and 0 <= y < self.cv_image_result.shape[0]
         ):
-            # print(self.cv_image_result[y, x])
-            # self.cv_image_result[y, x] = [255, 255, 255]
-            # return self.cv_image_result
-            # if (self.cv_image_result[y, x] == [0, 0, 0]).all():
-            #     return None
-
             image_selected_zone = self._select_zone_color(x, y, color)
             if color:
                 self.cv_image_result = image_selected_zone.copy()
@@ -162,6 +155,5 @@ class EmbroderyObj:
 
         if "colors" in data[str(self.image_path)].keys():
             self.list_colors = data[str(self.image_path)]["colors"]
-            print(self.list_colors)
         else:
             self.list_colors = []
