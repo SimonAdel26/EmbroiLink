@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 
-class Base:
+class ImageProcessing:
     def __init__(self):
         pass
 

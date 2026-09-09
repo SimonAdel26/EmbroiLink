@@ -15,8 +15,8 @@ from PyQt6.QtGui import QPixmap, QImage, QColor, QMovie
 from PyQt6 import uic
 from PyQt6.QtCore import Qt
 
-from embroi_link.src.base import Base
-from embroi_link.src.gif import Gif
+from embroi_link.src.image_processing import ImageProcessing
+from embroi_link.src.gif_generator import GifGenerator
 from embroi_link.src.embrodery_obj import EmbroderyObj, HISTORY_FILE_PATH, PROJECT_DIR
 
 from pathlib import Path
@@ -55,8 +55,8 @@ class MainWindow(QMainWindow):
 
         self.list_embroidery_stiches = QMenu()
         self.embrodery_obj = EmbroderyObj()
-        self.gif = Gif()
-        self.base = Base()
+        self.gif = GifGenerator()
+        self.base = ImageProcessing()
 
         self.splitter.setStretchFactor(0, 3)
         self.splitter.setStretchFactor(1, 1)

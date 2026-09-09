@@ -4,7 +4,7 @@ import random
 GIF_DIR = Path.cwd() / "embroi_link/res/gifs"
 
 
-class Gif:
+class GifGenerator:
     def __init__(self):
         self.gif_paths = []
         self.load_gifs()
