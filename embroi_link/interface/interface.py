@@ -3,6 +3,8 @@ from typing import Any
 
 from PyQt6 import QtCore
 from PyQt6.QtWidgets import (
+    QListWidget,
+    QListWidgetItem,
     QPushButton,
     QMainWindow,
     QFileDialog,
@@ -14,6 +16,7 @@ from PyQt6.QtWidgets import (
     QSplitter,
     QMenu,
     QScrollBar,
+    QWidgetAction,
 )
 from PyQt6.QtGui import QPixmap, QImage, QColor, QMovie
 from PyQt6 import uic
@@ -29,6 +32,36 @@ import os
 import cv2
 import numpy as np
 import json
+
+
+class ScrollableMenu(QMenu):
+    signal_set_number = pyqtSignal(int)
+
+    def __init__(self):
+        super().__init__()
+
+        self.list = QListWidget()
+        self.list.setFrameShape(QListWidget.Shape.NoFrame)
+        self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+
+        self.list.setMaximumWidth(50)
+        self.list.setMaximumHeight(500)
+
+        action = QWidgetAction(self)
+        action.setDefaultWidget(self.list)
+        self.addAction(action)
+        self.list.itemClicked.connect(self.on_item_clicked)
+
+        for i in range(1, 43):
+            self.addItem(str(i))
+
+    def addItem(self, text):
+        item = QListWidgetItem(text)
+        self.list.addItem(item)
+
+    def on_item_clicked(self, item):
+        self.signal_set_number.emit(int(item.text()))
 
 
 class KMeansWorker(QObject):
@@ -86,14 +119,15 @@ class MainWindow(QMainWindow):
         self.viewNewImage.mousePressEvent = self.on_image_click
         self.viewNewImage.mouseDoubleClickEvent = self.on_image_double_click
 
-        self.signal_generate_image.connect(self.generate_image)
-
-        self.list_embroidery_stiches = QMenu()
+        self.selected_number_from_embroidery_stiches = None
+        self.list_embroidery_stiches = ScrollableMenu()
         self.embrodery_obj = EmbroderyObj()
         self.gif = GifGenerator()
 
-        self.splitter.setStretchFactor(0, 3)
+        self.signal_generate_image.connect(self.generate_image)
+        self.list_embroidery_stiches.signal_set_number.connect(self.on_number_selected)
 
+        self.splitter.setStretchFactor(0, 3)
         self.init_window()
 
     # Public methods
@@ -200,30 +234,6 @@ class MainWindow(QMainWindow):
         if item is None:
             return
 
-        # # 1. Create the scrollbar
-        # scrollbar = QScrollBar(Qt.Orientation.Vertical)
-
-        # # 2. Change the context menu policy
-        # scrollbar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-
-        # # 3. Define the custom menu function
-        # def show_custom_menu(position):
-        #     menu = QMenu()
-        #     action1 = menu.addAction("Reset Scroll")
-        #     action2 = menu.addAction("Bookmark Position")
-
-        #     # Show the menu at the cursor position
-        #     selected_action = menu.exec(scrollbar.mapToGlobal(position))
-
-        #     if selected_action == action1:
-        #         scrollbar.setValue(0)
-
-        # 4. Connect the signal
-        # scrollbar.customContextMenuRequested.connect(show_custom_menu)
-
-        self.list_embroidery_stiches.setMaximumHeight(200)
-        # self.list_embroidery_stiches.exec(scrollbar.mapToGlobal(pos))
-
         self.list_embroidery_stiches.exec(
             self.tableWidgetThreadColor.viewport().mapToGlobal(pos)
         )
@@ -239,6 +249,28 @@ class MainWindow(QMainWindow):
 
             item.setText(str(self.selected_number_from_embroidery_stiches))
             item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+            item_row = item.row()
+            item_col = item.column()
+            item_pos_from_list_colors = (
+                item_row * self.tableWidgetThreadColor.columnCount() + item_col
+            )
+
+            with open(HISTORY_FILE_PATH, "r") as f:
+                data = json.load(f)
+
+            list_stitches = data[str(self.embrodery_obj.image_path)][
+                "types_of_stitches"
+            ]
+            list_stitches[item_pos_from_list_colors] = (
+                self.selected_number_from_embroidery_stiches
+            )
+            data[str(self.embrodery_obj.image_path)][
+                "types_of_stitches"
+            ] = list_stitches
+
+            with open(HISTORY_FILE_PATH, "w") as f:
+                json.dump(data, f, indent=4)
 
     def on_double_click_on_cell(self, row, col):
         """function to add color to the thread colors palette"""
@@ -269,6 +301,7 @@ class MainWindow(QMainWindow):
         self.show_image(self.viewOriginalImage, self.embrodery_obj.cv_image)
         self.show_image(self.viewNewImage, self.embrodery_obj.cv_image_result)
         self.refresh_color_table()
+        self.show_type_of_stitches(item.text())
 
         self.stackedWidget.setCurrentIndex(0)
 
@@ -320,6 +353,7 @@ class MainWindow(QMainWindow):
         self.refresh_color_table()
         self.enable_all_elements()
         self.stackedWidget.setCurrentIndex(1)
+        self.show_type_of_stitches(str(self.embrodery_obj.image_path))
 
     def on_save_image(self):
         """slot for save the result image"""
@@ -355,11 +389,6 @@ class MainWindow(QMainWindow):
         )
         self.labelListOfEmbroideryStitches.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.labelListOfEmbroideryStitches.setScaledContents(True)
-
-        for i in range(1, 43):
-            action = self.list_embroidery_stiches.addAction(str(i))
-            action.triggered.connect(lambda checked, x=i: self.on_number_selected(x))
-        self.selected_number_from_embroidery_stiches = None
 
     def _convert_coords(self, x_view, y_view):
         h_img, w_img, _ = self.embrodery_obj.cv_image_result.shape
@@ -458,3 +487,31 @@ class MainWindow(QMainWindow):
                 Qt.ItemDataRole.UserRole, (color.red(), color.green(), color.blue())
             )
             self.tableWidgetThreadColor.setItem(rows, 0, item)
+
+    def show_type_of_stitches(self, image_path):
+        with open(HISTORY_FILE_PATH, "r") as f:
+            data = json.load(f)
+
+        list_stitches = data[image_path]["types_of_stitches"]
+
+        for i in range(0, len(list_stitches)):
+            if list_stitches[i] != 0:
+                pos_item_tabel_row = i // self.tableWidgetThreadColor.columnCount()
+                pos_item_tabel_col = i % self.tableWidgetThreadColor.columnCount()
+
+                item_from_tabel = self.tableWidgetThreadColor.item(
+                    pos_item_tabel_row, pos_item_tabel_col
+                )
+
+                bg = item_from_tabel.background().color()
+                brightness = (
+                    (bg.red() * 0.299) + (bg.green() * 0.587) + (bg.blue() * 0.114)
+                )
+
+                if brightness < 128:
+                    item_from_tabel.setForeground(QColor(255, 255, 255))
+                else:
+                    item_from_tabel.setForeground(QColor(0, 0, 0))
+
+                item_from_tabel.setText(str(list_stitches[i]))
+                item_from_tabel.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
