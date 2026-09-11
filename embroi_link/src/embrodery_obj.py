@@ -153,9 +153,10 @@ class EmbroderyObj:
         if added:
             self.list_colors = list_colors
             data[str(self.image_path)]["colors"] = self.list_colors
-            # data[str(self.image_path)]["types_of_stitches"] = [0] * len(
-            #     self.list_colors
-            # )
+            if "types_of_stitches" not in data[str(self.image_path)]:
+                data[str(self.image_path)]["types_of_stitches"] = [0] * len(
+                    self.list_colors
+                )
             self._save_to_file(data)
             return
 
