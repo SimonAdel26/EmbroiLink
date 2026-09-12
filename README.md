@@ -94,24 +94,24 @@ make run
 ```
 
 ### 2. Uploading an image
-    - Use the ‘Upload Image’ button to upload an image from your system.
-    - The image is displayed in the main window.
-    - The image path is automatically added to the history list and saved in the JSON file.
-    - If the image has been used before, the application automatically loads the previously saved colours and stitch types.
+  - Use the ‘Upload Image’ button to upload an image from your system.
+  - The image is displayed in the main window.
+  - The image path is automatically added to the history list and saved in the JSON file.
+  - If the image has been used before, the application automatically loads the previously saved colours and stitch types.
 
 ### 3. Selecting an area of the image
-    - Click on the image to select an area.
-    - Double-click on the selected area to change its colour.
-    - The modified colour is automatically added:
-        - to the colour table,
-        - to the internal colour list,
-        - to the JSON file under the current image’s key.
+  - Click on the image to select an area.
+  - Double-click on the selected area to change its colour.
+  - The modified colour is automatically added:
+    - to the colour table,
+    - to the internal colour list,
+    - to the JSON file under the current image’s key.
 
 ### 4. Generating the colour palette (K-Means)
-    - Use the ‘Create Design’  button .
-    - The K-Means algorithm runs in a separate thread to prevent the UI from freezing.
-    - The colour palette is displayed in the colour table.
-    - The generated image is displayed in the main window
+  - Use the ‘Create Design’  button .
+  - The K-Means algorithm runs in a separate thread to prevent the UI from freezing.
+  - The colour palette is displayed in the colour table.
+  - The generated image is displayed in the main window
 
 ### 5. Thread Colour Table
   - An interactive table where each cell represents a colour.
@@ -121,13 +121,13 @@ make run
   - The text in the cell is centred and its colour is automatically adjusted for visibility.
 
 ### 6. Selecting the stitch type (Scrollable Number Picker)
-    - Right-clicking on a cell opens a scrollable dialogue box.
-    - The dialogue box is built using a QListWidget to enable scrolling.
-    - Select the desired number (stitch type).
-    - The number is displayed in the cell and saved in JSON.
+  - Right-clicking on a cell opens a scrollable dialogue box.
+  - The dialogue box is built using a QListWidget to enable scrolling.
+  - Select the desired number (stitch type).
+  - The number is displayed in the cell and saved in JSON.
 
 ### 7. Saving data (JSON)
-    - The application automatically saves all the information to a JSON file.
+  - The application automatically saves all the information to a JSON file.
 The structure is as follows:
 ``` bash
 {
@@ -145,13 +145,13 @@ The structure is as follows:
 }
 ```
 
-    - The key is the image path,
-    - the value is a dictionary containing:
-        - the list of colours generated or modified,
-        - the list of stitch types selected by the user,
+  - The key is the image path,
+  - the value is a dictionary containing:
+    - the list of colours generated or modified,
+    - the list of stitch types selected by the user,
 
 When the application is opened, the data is automatically restored.
 
 ### 8. Saving the result
-    - The processed image can be saved using the Save Image button.
-    - The file includes the colours and any changes made.
+  - The processed image can be saved using the Save Image button.
+  - The file includes the colours and any changes made.
